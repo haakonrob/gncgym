@@ -1,3 +1,0 @@
-[console_scripts]
-gncgym = gncgym.cli:main
-
