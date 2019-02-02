@@ -1,7 +1,7 @@
 import click
 import inspect
 import gncgym.scenarios.example_scenarios as scenarios
-from gncgym.env.base import BaseShipScenario
+from gncgym.base_env.base import BaseShipScenario
 from gncgym.play import play_scenario
 
 @click.group()

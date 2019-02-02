@@ -10,42 +10,42 @@ environments when running tests.
 try:
     register(
         id='shipExampleScenario-v0',
-        entry_point='gncgym.env:ExampleScenario',
+        entry_point='gncgym.base_env:ExampleScenario',
     )
 
     register(
         id='shipStraightPathFollowing-v0',
-        entry_point='gncgym.env:StraightPathScenario',
+        entry_point='gncgym.base_env:StraightPathScenario',
     )
 
     register(
         id='shipCurvedPathFollowing-v0',
-        entry_point='gncgym.env:CurvedPathScenario',
+        entry_point='gncgym.base_env:CurvedPathScenario',
     )
 
     register(
         id='shipStraightPathFollowingWithOvertaking-v0',
-        entry_point='gncgym.env:StraightPathOvertakingScenario',
+        entry_point='gncgym.base_env:StraightPathOvertakingScenario',
     )
 
     register(
         id='shipCurvedPathFollowingWithOvertaking-v0',
-        entry_point='gncgym.env:CurvedPathOvertakingScenario',
+        entry_point='gncgym.base_env:CurvedPathOvertakingScenario',
     )
 
     register(
         id='shipCurvedPathFollowingWithShipCollision-v0',
-        entry_point='gncgym.env:CurvedPathShipCollisionScenario',
+        entry_point='gncgym.base_env:CurvedPathShipCollisionScenario',
     )
 
     register(
         id='shipCurvedPathStaticObstacles-v0',
-        entry_point='gncgym.env:CurvedPathStaticObstacles',
+        entry_point='gncgym.base_env:CurvedPathStaticObstacles',
     )
 
     register(
         id='shipCurvedPathStaticDynamicObstacles-v0',
-        entry_point='gncgym.env:CurvedPathStaticDynamicObstacles',
+        entry_point='gncgym.base_env:CurvedPathStaticDynamicObstacles',
     )
 
 except GymError as e:

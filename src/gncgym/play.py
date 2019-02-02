@@ -1,7 +1,7 @@
 import inspect
 import numpy as np
 from time import time
-from gncgym.env.base import BaseShipScenario
+from gncgym.base_env.base import BaseShipScenario
 import gncgym.scenarios as scenarios
 
 
@@ -65,7 +65,7 @@ def play_scenario(game):
                     print("action " + str(["{:+0.2f}".format(x) for x in a]))
                     print("step {} total_reward {:+0.2f}".format(steps, total_reward))
                 steps += 1
-                if not record_video:  # Faster, but you can as well call env.render() every time to play full window.
+                if not record_video:  # Faster, but you can as well call base_env.render() every time to play full window.
                     env.render()
 
                 if quit: raise KeyboardInterrupt

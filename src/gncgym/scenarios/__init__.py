@@ -26,7 +26,7 @@ def autoload():
                     if inspect.isclass(v) and issubclass(v, BaseShipScenario) and v != BaseShipScenario:
                         this.available_scenarios[k] = v
                         
-    from gncgym.env.base import BaseShipScenario
+    from gncgym.base_env.base import BaseShipScenario
     import inspect
     from os.path import abspath
     from inspect import getsourcefile
