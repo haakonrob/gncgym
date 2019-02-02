@@ -1,13 +1,12 @@
 import math
 from copy import deepcopy
-import logging
 import numpy as np
 from numpy import pi
 
 # import matplotlib.pyplot as plt
 from scipy import interpolate
 from scipy.optimize import fminbound
-from .angle import Angle
+from gncgym.simulator.angle import Angle
 
 
 class ParamLine():
@@ -154,7 +153,7 @@ class ParamCircle:
     def plot(self, ax, s, *opts):
         s = np.array(s)
         z = self(s)
-        ax.plot(-z[1,:],z[0,:], *opts)
+        ax.plot(-z[1, :], z[0, :], *opts)
 
 
 class RandomLineThroughOrigin(ParamLine):

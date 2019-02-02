@@ -1,11 +1,10 @@
-import gym
-from gncgym.envs.scenarios import ExampleScenario
+from gncgym.scenarios.example_scenarios import ExampleScenario
 import numpy as np
-
 
 
 class TestBase:
     def test_env(self):
+        """Test that the example scenario works can be run, and that it has meaningful output."""
         env = ExampleScenario()
         action = [0, 0]
         first_obs = env.reset()

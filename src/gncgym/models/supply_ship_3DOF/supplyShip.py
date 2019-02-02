@@ -1,8 +1,8 @@
 import numpy as np
-import simulator as sim
+from gncgym import simulator as sim
 
 from copy import deepcopy
-from simulator.blocks import make_integrator_block
+from gncgym.simulator.blocks import make_integrator_block
 
 from .gncUtilities import Rzyx
 from .feedbackLinearisingController import make_feedback_linearising_controller_block

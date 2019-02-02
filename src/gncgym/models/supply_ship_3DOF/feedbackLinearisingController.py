@@ -1,6 +1,6 @@
 import numpy as np
 from .gncUtilities import angdiff
-from simulator.blocks import \
+from gncgym.simulator.blocks import \
     make_derivative_block, \
     make_saturation_block, \
     make_rate_limiting_block

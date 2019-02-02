@@ -1,8 +1,8 @@
 import numpy as np
 from numpy import sin, cos
-from .base import BaseShipScenario
-from ship_env.parametrisedCurves import RandomLineThroughOrigin, RandomCurveThroughOrigin, ParamCircle, ParamLine
-from .objects import Vessel2D, StaticObstacle, DynamicObstacle, distance, MAX_SURGE, CROSS_TRACK_TOL, SURGE_TOL
+from gncgym.env.base import BaseShipScenario
+from gncgym.parametrised_curves import RandomLineThroughOrigin, RandomCurveThroughOrigin, ParamCircle, ParamLine
+from gncgym.env.objects import Vessel2D, StaticObstacle, DynamicObstacle, distance, MAX_SURGE, CROSS_TRACK_TOL, SURGE_TOL
 
 
 class ExampleScenario(BaseShipScenario):

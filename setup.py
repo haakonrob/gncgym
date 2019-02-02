@@ -24,8 +24,8 @@ def read(*names, **kwargs):
 
 setup(name='gncgym',
       version='0.0.1',
-      asdfasdflicense='BSD 2-Clause License',
-      install_requires=['gym', 'pyglet'],
+      license='BSD 2-Clause License',
+      install_requires=['gym', 'pyglet', 'click'],
       packages=find_packages('src'),
       package_dir={'': 'src'},
       py_modules=[splitext(basename(path))[0] for path in glob('src/*.py')],
@@ -33,7 +33,7 @@ setup(name='gncgym',
       zip_safe=False,
       entry_points={
         'console_scripts': [
-            'gncgym = gncgym.cli:main',
+            'gncgym = gncgym.cli:cli',
         ]
     },
 )

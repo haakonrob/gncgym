@@ -1,5 +1,5 @@
 import numpy as np
-from ship_env.angle import Angle
+from gncgym.simulator.angle import Angle
 from numpy.linalg import inv
 from .gncUtilities import m2c, Rzyx
 

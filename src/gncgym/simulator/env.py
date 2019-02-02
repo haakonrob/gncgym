@@ -36,6 +36,7 @@ def init(**kwargs):
 def step():
     env.time += env.dt
 
+
 class BlockData:
     """
     Data class that keeps track of block metadata. The only required values are the block id
