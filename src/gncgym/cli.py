@@ -52,3 +52,8 @@ def play(model, scenario, controller, objective, disturbances, observer):
     play_scenario(scenario)
 
 
+@cli.command()
+def make():
+    import gym
+
+    env = gym.make('shipExampleScenario-v0')
