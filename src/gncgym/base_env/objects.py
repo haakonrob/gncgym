@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import pi, sin, cos
 from gncgym.simulator.angle import Angle
-from .utils import distance
+from gncgym.utils import distance
 from gncgym.models.supply_ship_3DOF import make_supply_ship_block
 import gncgym.simulator as sim
 

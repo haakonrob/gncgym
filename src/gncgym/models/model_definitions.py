@@ -1,11 +1,12 @@
 import numpy as np
+from gym import Space
 
 
 def shape(v):
     try:
         return v.shape  # NumPy arrays and PyTorch Tensors
     except AttributeError:
-        return (1, len(v))
+        return (len(v), 1)
 
 
 class Model:
@@ -16,34 +17,50 @@ class Model:
     Notation for the variables is standard:
         x: state
         u: input
-        w: disturbances
+        v: disturbances
         y: measurement
     """
 
-    def __init__(self, state, input=None, disturbances=None):
-        self.shape_x = shape(state)
-        self.shape_u = shape(input)
-        self.shape_w = shape(disturbances)
+    def __init__(self, state, input_space=None, output_space=None, disturbance_space=None):
+        self._input_space = None
+        self._output_space = None
+        self._disturbance_space = None
+        self._step = None
+        self._output_map = dict()
 
-    def init(self, x=None, u=None, w=None):
+    def init(self, x0=None):
         raise NotImplementedError
 
-    def input(self, u):
-        if shape_u is None:
-            raise ValueError('Model.input() was called without declaring the input shape.')
-        if shape(u) != self.shape_u:
-            raise ValueError('Shape of argument is wrong.')
-        self.u = u
+    def step(self, u, v):
+        if not callable(self._step):
+            raise NotImplementedError
+        else:
+            return self._step(u, v)
 
-    def disturbance(self, w):
-        self.w = w
+    """
+    Mandatory properties of a model. The spaces of the inputs must be defined explicitly to
+    ensure that agents and controllers can assign inputs to the model properly. Additionally,
+    the output of the model code must be mapped to keys used in the namedtuple representation
+    of the state.   
+    """
+    @property
+    def input_space(self):
+        if self._input_space is None or not issubclass(self._input_space, Space):
+            raise NotImplementedError
+        else:
+            return self._input_space
 
-    def step(self):
-        raise NotImplementedError
+    @property
+    def disturbance_space(self):
+        if self._disturbance_space is None or not issubclass(self._disturbance_space, Space):
+            raise NotImplementedError
+        else:
+            return self._disturbance_space
 
-    def measure(self):
-        """
-        Implement this function if you want
-        :return:
-        """
-        return self.x
+    @property
+    def output_map(self):
+        if type(self._output_map) is not dict:
+            raise NotImplementedError
+        else:
+            return self._output_map
+
