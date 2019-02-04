@@ -6,7 +6,7 @@ from gncgym import simulator as sim
 
 from . import rendering
 from .objects import MAX_SURGE
-from .utils import distance, rotate
+from gncgym.utils import distance, rotate
 from gym.utils import seeding, EzPickle
 from gncgym.simulator.angle import Angle
 import pyglet
@@ -62,7 +62,7 @@ class BaseShipScenario(gym.Env, EzPickle):
     }
 
     def __init__(self):
-        sim.init(
+        self.t = sim.init(
             solver='fixed_step',
             step_size=0.05,
         )
@@ -119,7 +119,7 @@ class BaseShipScenario(gym.Env, EzPickle):
         info = {}
         self.reward += sr
 
-        sim.env.step()  # Updates dt
+        self.t = sim.env.step()  # Updates dt
 
         return obs, sr, done, info
 

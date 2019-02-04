@@ -31,10 +31,12 @@ def init(**kwargs):
         env.dt = kwargs['step_size']
 
     env.time = 0
+    return env.time
 
 
 def step():
     env.time += env.dt
+    return env.time
 
 
 class BlockData:

@@ -117,3 +117,4 @@ dmypy.json
 
 # IDE folders:
 .idea/
+src/gncgym/__pycache__
