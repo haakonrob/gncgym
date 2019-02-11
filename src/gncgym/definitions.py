@@ -84,7 +84,7 @@ def add(v1, v2):
 
 
 def sub(v1, v2):
-    assert type(v1) is type(v2), "Tried to add different types {} and {}.".format(type(v1), type(v2))
+    assert type(v1) is type(v2), "Tried to sub different types {} and {}.".format(type(v1), type(v2))
     return type(v1)(*[a - b for a, b in zip(v1, v2)])
 
 

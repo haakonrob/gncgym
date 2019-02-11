@@ -38,28 +38,28 @@ class TestDefinitions:
 
     def test_add_for_all_types(self):
         for x, y in zip([p1, o1, po1, lv1, av1, v1], [p2, o2, po2, lv2, av2, v2]):
-                assert defs.add(x, y) == tuple(np.array(x) + np.array(y))
+            assert np.linalg.norm(np.array(defs.add(x, y)) - np.array(x) - np.array(y)) < 0.00001
 
     def test_sub_for_all_types(self):
         for x, y in zip([p1, o1, po1, lv1, av1, v1], [p2, o2, po2, lv2, av2, v2]):
-            assert defs.sub(x, y) == tuple(np.array(x) - np.array(y))
+            assert np.linalg.norm(np.array(defs.sub(x, y)) - np.array(x) - np.array(y)) < 0.00001
 
     def test_dot_for_all_types(self):
         for x, y in zip([p1, o1, po1, lv1, av1, v1], [p2, o2, po2, lv2, av2, v2]):
-            assert defs.dot(x, y) == float(np.array(x).dot(np.array(y)))
+            assert abs(defs.dot(x, y) - float(np.array(x).dot(np.array(y))))  < 0.00001
 
     def test_norm_for_all_types(self):
         for x, y in zip([p1, o1, po1, lv1, av1, v1], [p2, o2, po2, lv2, av2, v2]):
-            assert defs.norm(x) == np.linalg.norm(x)
-            assert defs.norm(y) == np.linalg.norm(y)
+            assert abs(defs.norm(x) - np.linalg.norm(x)) < 0.0001
+            assert abs(defs.norm(y) - np.linalg.norm(y)) < 0.0001
 
     def test_distance_for_all_types(self):
         for x, y in zip([p1, o1, po1, lv1, av1, v1], [p2, o2, po2, lv2, av2, v2]):
-            assert defs.distance(x, y) == np.linalg.norm(np.array(x) - np.array(y))
+            assert abs(defs.distance(x, y) - np.linalg.norm(np.array(x) - np.array(y))) < 0.00001
 
     def test_normalise_for_all_types(self):
         for x, y in zip([p1, o1, po1, lv1, av1, v1], [p2, o2, po2, lv2, av2, v2]):
             Lx = np.linalg.norm(np.array(x))
             Ly = np.linalg.norm(np.array(y))
-            assert defs.normalise(x) == tuple(np.array(x)/Lx)
-            assert defs.normalise(y) == tuple(np.array(y)/Ly)
+            assert np.linalg.norm(np.array(defs.normalise(x)) - tuple(np.array(x)/Lx)) < 0.00001
+            assert np.linalg.norm(np.array(defs.normalise(y)) - tuple(np.array(y)/Ly)) < 0.00001
