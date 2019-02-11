@@ -42,7 +42,7 @@ class TestDefinitions:
 
     def test_sub_for_all_types(self):
         for x, y in zip([p1, o1, po1, lv1, av1, v1], [p2, o2, po2, lv2, av2, v2]):
-            assert np.linalg.norm(np.array(defs.sub(x, y)) - np.array(x) - np.array(y)) < 0.00001
+            assert np.linalg.norm(np.array(defs.sub(x, y)) - (np.array(x) - np.array(y))) < 0.00001
 
     def test_dot_for_all_types(self):
         for x, y in zip([p1, o1, po1, lv1, av1, v1], [p2, o2, po2, lv2, av2, v2]):
