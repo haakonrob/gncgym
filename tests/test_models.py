@@ -8,4 +8,3 @@ class TestModelLoading:
 
     def test_model_interfaces(self):
         loaded_models = models.autoload()  # Result is cached after models are loaded for the first time
-        

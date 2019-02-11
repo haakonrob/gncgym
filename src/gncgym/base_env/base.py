@@ -103,6 +103,9 @@ class BaseShipScenario(gym.Env, EzPickle):
         x = self.ship.step(u, w)
         y = self.observer(xn)
         e = self.objective(xn, yn)  # e = (obs, step_r, done, info)
+        self.objects = []
+        env = 
+        snapshot = EnvSnapshot(timestamp=t, env=}
         return e
         
         """
@@ -576,4 +579,14 @@ class BaseShipScenario(gym.Env, EzPickle):
         self.score_label.text = "{:2.2f}".format(self.reward)
         self.score_label.draw()
 
+
+class EnvSnapshot:
+    def __init__(self, timestamp: float, objects: dict, disturbances: dict, modules: dict):
+        self.timestamp = timestamp
+        self.objects = objects
+        self.disturbances = disturbances
+        self.modules = modules
+
+    def repr(self):
+        return "EnvSnapshot(timestamp={})".format(self.timestamp)
 

@@ -48,10 +48,10 @@ Velocity = namedtuple('Velocity', [*linvel_vars, *angvel_vars])
 
 class State6DOF:
     def __init__(self, pos, ori, lvel, avel):
-        self.x, self.y, self.z = pos
-        self.roll, self.pitch, self.yaw = ori
-        self.surge, self.sway, self.heave = lvel
-        self.rollrate, self.pitchrate, self.yawrate = avel
+        self.x,         self.y,         self.z =        pos
+        self.roll,      self.pitch,     self.yaw =      ori
+        self.surge,     self.sway,      self.heave =    lvel
+        self.rollrate,  self.pitchrate, self.yawrate =  avel
 
     @property
     def position(self):
@@ -76,15 +76,6 @@ class State6DOF:
     @property
     def velocity(self):
         return Orientation(self.surge, self.sway, self.heave, self.rollrate, self.pitchrate, self.yawrate)
-
-    def __iter__(self):
-        """
-        Since the vector operations defined below operate on iterating through an object,
-        defining __iter__ extends them to the State6DOF class as well.
-        """
-        for prop in [self.x, self.y, self.z, self.roll, self.pitch, self.yaw,
-                     self.surge, self.sway, self.heave, self.rollrate, self.pitchrate, self.yawrate]:
-            yield prop
 
 
 def add(v1, v2):

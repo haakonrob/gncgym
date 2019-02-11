@@ -8,7 +8,7 @@ import gncgym.simulator as sim
 # Top-down ship dynamics simulation.
 #
 # This code, and the rest of the ship base_env is heavily based on Oleg Klimov's car_racing environment for the OpenAI
-# gym. Oleg did a great job of combining the gym's classical control rendering module and some custom functionality
+# gym. Oleg did a great job of combining the gym's classical control rendering module and some custom visuals
 # by calling the Pyglet gl API directly. This functionality includes camera following, a fancy 'zoom in' on startup,
 # and a few indicators for the total reward achieved, the current speed, and the control inputs. I've taken this
 # functionality, replaced the Box2D simulation and replaced it with my own ship simulation code,
@@ -140,8 +140,3 @@ class Vessel2D(EnvObject):
             viewer.draw_arrow(self.position, self.ref[1], length=5)  # reference
         else:
             viewer.draw_arrow(self.position, self.angle + pi + self.ref[1]/4, length=2)
-
-
-# TODO Needs new models for stepping, and 3D rendering
-class Vessel3D(EnvObject):
-    pass
