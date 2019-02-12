@@ -3,6 +3,7 @@ from gym import spaces
 import numpy as np
 from numpy import pi, sin, cos, arctan2
 from gncgym import simulator as sim
+from gncgym.definitions import State6DOF
 
 from . import rendering
 from .objects import MAX_SURGE
@@ -109,14 +110,14 @@ class BaseShipScenario(gym.Env, EzPickle):
         return e
         
         """
-        self.ship.step()
-        s = self.path.get_closest_s(self.ship.position)
+        state = self.ship.step()
+        s = self.path.get_closest_s(state.position[0:2])
         ds, self.s = s - self.s, s
 
         for o in self.dynamic_obstacles:
             o.step()
 
-        obs = self.navigate()
+        obs = self.navigate(self.ship.state)
         self.last_obs = obs
         done, sr = self.step_reward(action, obs, ds)
         info = {}
@@ -127,9 +128,7 @@ class BaseShipScenario(gym.Env, EzPickle):
         return obs, sr, done, info
 
     # TODO move to observer or objective module
-    def navigate(self, state=None):
-        if state is None:
-            state = self.ship.state.flatten()
+    def navigate(self, state):
 
         self.update_closest_obstacles()
 
@@ -144,10 +143,11 @@ class BaseShipScenario(gym.Env, EzPickle):
         heading_ref_error = float(Angle(target_angle - self.ship.ref[1]*pi))
 
         # State and path errors
-        surge_error = self.speed - state[3]
-        heading_error = float(Angle(target_angle - state[2]))
-        cross_track_error = rotate(closest_point - self.ship.position, -closest_angle)[1]
-        target_dist = distance(self.ship.position, target)
+        velocity = state.velocity
+        surge_error = self.speed - velocity.surge
+        heading_error = float(Angle(target_angle - state.orientation.yaw))
+        cross_track_error = rotate(closest_point - np.array(self.ship.position[0:2]), -closest_angle)[1]
+        target_dist = distance(state.position[0:2], target)
 
         # Construct observation vector
         obs = np.zeros((NR + NS + 2 * STATIC_OBST_SLOTS + 4 * DYNAMIC_OBST_SLOTS,))
@@ -160,23 +160,6 @@ class BaseShipScenario(gym.Env, EzPickle):
         obs[NR+1] = np.clip(heading_error / pi, -1, 1)
         obs[NR+2] = np.clip(cross_track_error / OBST_RANGE, -1, 1)
         obs[NR+3] = np.clip(target_dist / OBST_RANGE, 0, 1)
-
-        if False:
-            state_error = np.array([target[0], target[1], target_angle, self.speed, 0, 0]) - state  # plus obstacles
-            state_error[0:2] = rotate(state_error[0:2], self.ship.angle)  # Rotate to body frame
-            state_error[2] = float(Angle(state_error[2]))  # Bring back into -pi, pi range
-
-            # Reference error
-            obs[0] = np.clip(ref_error[0] / MAX_SURGE, -1, 1)
-            obs[1] = np.clip(ref_error[0] / pi, -1, 1)
-
-            # Path errors
-            obs[2] = np.clip(state_error[0] / LOS_DISTANCE, -1, 1)
-            obs[3] = np.clip(state_error[1] / LOS_DISTANCE, -1, 1)
-            obs[4] = np.clip((((state_error[2] + pi) % (2*pi)) - pi) / pi, -1, 1)
-            obs[5] = np.clip(state_error[3] / MAX_SURGE, -1, 1)
-            obs[6] = np.clip(state_error[4] / MAX_SURGE, -1, 1)
-            obs[7] = np.clip(state_error[5] / MAX_SURGE, -1, 1)
 
         # Write static obstacle data into observation
         for i, slot in self.active_static.items():
@@ -323,7 +306,9 @@ class BaseShipScenario(gym.Env, EzPickle):
             raise NotImplementedError('The self.path attribute MUST be set.')
         if self.ship is None:
             raise NotImplementedError('The self.ship attribute MUST be set.')
-        self.last_obs = self.navigate()
+
+        self.ship.step()
+        self.last_obs = self.navigate(self.ship.state)  # Initialise with all zeros
 
         S = np.linspace(0, self.path.length, 1000)
         self.path_points = np.transpose(self.path(S))
@@ -374,8 +359,8 @@ class BaseShipScenario(gym.Env, EzPickle):
         # zoom = 1
         zoom_state  = ZOOM*SCALE*STATE_W/WINDOW_W
         zoom_video  = ZOOM*SCALE*VIDEO_W/WINDOW_W
-        scroll_x = self.ship.position[0]
-        scroll_y = self.ship.position[1]
+        scroll_x = self.ship.state.position.x
+        scroll_y = self.ship.state.position.y
         angle = -self.ship.angle
         vel = self.ship.linearVelocity
         if np.linalg.norm(vel) > 0.5:
@@ -497,7 +482,6 @@ class BaseShipScenario(gym.Env, EzPickle):
             gl.glVertex3f((place+1)*s, 2*h, 0)
             gl.glVertex3f((place+0)*s, 2*h, 0)
             gl.glEnd()
-
 
         def horiz_ind(place, val, color):
             gl.glBegin(gl.GL_QUADS)

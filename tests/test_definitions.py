@@ -23,7 +23,7 @@ v2 = defs.Velocity(*[10 * rng.random() for _ in range(6)])
 class TestDefinitions:
     def test_assumptions(self):
         """
-        Some assumptions are made in this test, based on empirical experiments.
+        Some assumptions are made in these tests, based on empirical experiments.
         """
 
         # Tuples are equal to named tuples if their contents are the same

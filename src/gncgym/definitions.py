@@ -13,6 +13,10 @@ or
 which is more resusable and clear when compared to numeric indexing.
 """
 
+
+# NumPy has something called Record Arrays, which can be used exactly the same as these named tuples, but based on
+# the power of numpy arrays. This is the next step...
+
 this = sys.modules[__name__]
 
 position_vars = ['x', 'y', 'z']
@@ -47,11 +51,11 @@ Velocity = namedtuple('Velocity', [*linvel_vars, *angvel_vars])
 
 
 class State6DOF:
-    def __init__(self, pos, ori, lvel, avel):
-        self.x,         self.y,         self.z =        pos
-        self.roll,      self.pitch,     self.yaw =      ori
-        self.surge,     self.sway,      self.heave =    lvel
-        self.rollrate,  self.pitchrate, self.yawrate =  avel
+    def __init__(self, x=0, y=0, z=0, roll=0, pitch=0, yaw=0, surge=0, sway=0, heave=0, rollrate=0, pitchrate=0, yawrate=0):
+        self.x,         self.y,         self.z = x, y, z
+        self.roll,      self.pitch,     self.yaw = roll, pitch, yaw
+        self.surge,     self.sway,      self.heave = surge, sway, heave
+        self.rollrate,  self.pitchrate, self.yawrate = rollrate, pitchrate, yawrate
 
     @property
     def position(self):
@@ -75,7 +79,16 @@ class State6DOF:
 
     @property
     def velocity(self):
-        return Orientation(self.surge, self.sway, self.heave, self.rollrate, self.pitchrate, self.yawrate)
+        return Velocity(self.surge, self.sway, self.heave, self.rollrate, self.pitchrate, self.yawrate)
+
+    @velocity.setter
+    def velocity(self, surge, sway, heave, rollrate, pitchrate, yawrate):
+        self.surge = surge
+        self.sway = sway
+        self.heave = heave
+        self.rollrate = rollrate
+        self.pitchrate = pitchrate
+        self.yawrate = yawrate
 
 
 def add(v1, v2):

@@ -89,14 +89,16 @@ class DynamicObstacle(EnvObject):
         viewer.draw_shape(self.vertices, self.position, self.angle, self.color if color is None else color)
 
 
-# TODO Step specified model
+# Step and draw vessel
 class Vessel2D(EnvObject):
-    def __init__(self, init_angle, init_x, init_y, width=4, linearising_feedback=True):
+    def __init__(self, init_angle, init_x, init_y, width=4, linearising_feedback=False):
+        from gncgym.models.supply_ship_3DOF.model import SupplyShip3DOF
         self.lin_feedback = linearising_feedback
-        self.ref = [0, Angle(init_angle)]  # surge, heading
+        self.ref = [0, 0]  # surge, heading
 
         self.state = np.vstack((init_x, init_y, init_angle, 0, 0, 0))
-        self.model = make_supply_ship_block(self.state, linearising_feedback=linearising_feedback)
+        self.model = SupplyShip3DOF(self.state)
+        # self.model = make_supply_ship_block(self.state, linearising_feedback=linearising_feedback)
         self.path_taken = []
         self.color = (0.6, 0.6, 0.6)
         self.vertices = [
@@ -110,33 +112,29 @@ class Vessel2D(EnvObject):
         super().__init__(radius=width, angle=init_angle, position=(init_x, init_y))
 
     def surge(self, surge):
-        surge = np.clip(surge, -1, 1)
-        if self.lin_feedback:
-            self.ref[0] = np.clip(self.ref[0] + surge*SURGE_RATE, 0, MAX_SURGE)
-        else:
-            self.ref[0] = surge*(THRUST_MAX - THRUST_MIN) + THRUST_MIN
+        lo = self.model.input_space.low[0]
+        hi = self.model.input_space.high[0]
+        self.ref[0] = np.clip(surge, lo, hi)
 
     def steer(self, steer):
-        steer = np.clip(steer, -1, 1)
-        if self.lin_feedback:
-            self.ref[1] = float(Angle(self.ref[1] + steer * RUDDER_RATE))
-        else:
-            self.ref[1] = steer*RUDDER_MAX
+        lo = self.model.input_space.low[1]
+        hi = self.model.input_space.high[1]
+        self.ref[1] = np.clip(steer, lo, hi)
 
     def step(self):
-        self.state = self.model(self.ref)
-        self.position = tuple(self.state[0:2, :].flatten())
-        self.angle = float(self.state[2])
-        self.linearVelocity = tuple(self.state[3:5].flatten())
-        self.angularVelocity = float(self.state[5])
+        self.state = self.model.step(self.ref)
+        if self.path_taken == [] or distance(self.state.position[0:2], self.path_taken[-1]) > 3:
+            self.path_taken.append((self.state.position.x, self.state.position.y))
 
-        if self.path_taken == [] or distance(self.position, self.path_taken[-1]) > 3:
-            self.path_taken.append(self.position)
+        return self.state
 
     def draw(self, viewer):
+        position = self.state.position[0:2]
+        orientation = self.state.orientation
+        # print(orientation)
         viewer.draw_polyline(self.path_taken, linewidth=3, color=(0.8, 0, 0))  # previous positions
-        viewer.draw_shape(self.vertices, self.position, self.angle, self.color)  # ship
+        viewer.draw_shape(self.vertices, position, orientation.yaw, self.color)  # ship
         if self.lin_feedback:
-            viewer.draw_arrow(self.position, self.ref[1], length=5)  # reference
+            viewer.draw_arrow(position, self.ref[1], length=5)  # reference
         else:
-            viewer.draw_arrow(self.position, self.angle + pi + self.ref[1]/4, length=2)
+            viewer.draw_arrow(position, orientation.yaw + pi + self.ref[1]/2, length=2)

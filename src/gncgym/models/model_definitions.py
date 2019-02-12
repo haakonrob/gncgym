@@ -1,6 +1,7 @@
+import numpy as np
 import gym
 import logging
-import gncgym.definitions as gnc
+import gncgym.definitions as gncdefs
 
 
 class Model:
@@ -33,16 +34,17 @@ class Model:
                   space of the model.
         :return:  State6DOF
         """
+        u = np.array(u)
+        v = np.array(v) if v is not None else v
         if not self.input_space.contains(u):
             logging.warning("Input {} is out of input_space.")
 
         if self.supports_disturbances():
-            state = self._step(u, v)
+            raw_state = self._step(u, v)
         else:
-            state = self._step(u)
+            raw_state = self._step(u)
 
-        # Convert the state into a namedtuple form by using the output_map
-        return gnc.State6DOF(**{self.output_map[i]: value for i, value in state})
+        return gncdefs.State6DOF(**{self.output_map[i]: float(value)for i, value in enumerate(raw_state)})
 
     def _step(self, u, v=None):
         raise NotImplementedError('The _step() method must be defined by any subclass of Model.')
@@ -73,8 +75,11 @@ class Model:
             >>> m = Model()                 # Subclass of Model
             >>> m.input_space = my_space    # The input_space.setter is called here
         """
-        if not issubclass(u_space, gym.Space):
+        if issubclass(type(u_space), gym.Space):
+            self._input_space = u_space
+        else:
             raise TypeError("The input_space attribute must be of type gym.Space")
+
 
     @property
     def output_map(self):
@@ -84,10 +89,10 @@ class Model:
         any class subclassing Model.
         :return: gym.Space
         """
-        if 'output_map' not in self.__dict__:
+        if '_output_map' not in self.__dict__:
             raise NotImplementedError("The output_map must be set by the subclass of Model.")
         else:
-            return self._disturbance_space
+            return self._output_map
 
     @output_map.setter
     def output_map(self, o_map: tuple):
@@ -102,11 +107,12 @@ class Model:
             o_map = tuple(o_map)
         if not type(o_map) is tuple:
             raise TypeError("The output_map attribute must be of type tuple")
-        if not all(key in gnc.State6DOF._fields for key in o_map):
+        if not all(key in gncdefs.variables for key in o_map):
             raise ValueError('One of the values in given output_map {} does not match'
-                             'one of the state fields: {}'.format(o_map, gnc.State6DOF._fields))
+                             'one of the state fields: {}'.format(o_map, gncdefs.State6DOF._fields))
         if len(set(o_map)) != len(o_map):
             raise ValueError('The output map does not specify unique keys.')
+        self._output_map = o_map
 
     def supports_disturbances(self):
         """

@@ -10,7 +10,7 @@ from .shipDynamics import make_supply_ship_dynamics_block
 
 
 @sim.declare_block
-def make_supply_ship_block(initial_state=np.vstack([0, 0, 0, 0, 0, 0]), linearising_feedback=True):
+def make_supply_ship_block(initial_state=np.vstack([0, 0, 0, 0, 0, 0]), linearising_feedback=False):
     # Make sure that the given state is not changed
     state = deepcopy(initial_state)
 
