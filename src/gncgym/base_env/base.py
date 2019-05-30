@@ -1,3 +1,4 @@
+import os
 import gym
 from gym import spaces
 import numpy as np
@@ -455,7 +456,9 @@ class BaseShipScenario(gym.Env, EzPickle):
             pixels = data.flatten().astype('int').tolist()
             raw_data = (GLubyte * len(pixels))(*pixels)
             bg = pyglet.image.ImageData(width=self.bg_w, height=self.bg_h, format='RGB', data=raw_data)
-            bg.save('/tmp/bg.png')
+            if not os.path.exists('.tmp/'):
+                os.mkdir('./tmp')
+            bg.save('./tmp/bg.png')
             self.bg = pyglet.sprite.Sprite(bg, x=-self.bg_w/2, y=-self.bg_h/2)
             self.bg.scale = 1
 
