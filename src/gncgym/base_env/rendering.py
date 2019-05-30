@@ -24,13 +24,15 @@ from gym import error
 try:
     import pyglet
 except ImportError as e:
-    pass
+    # Gym deprecated their reraise function
+    print("Couldn't import pyglet, is it installed?")
     # reraise(suffix="HINT: you can install pyglet directly via 'pip install pyglet'. But if you really just want to install all Gym dependencies and not have to think about it, 'pip install -e .[all]' or 'pip install gym[all]' will do it.")
 
 try:
     from pyglet.gl import *
 except ImportError as e:
-    pass
+    # Gym deprecated their reraise function
+    print("Couldn't import pyglet.g, OpenGL is probably not installed.")
     # reraise(prefix="Error occured while running `from pyglet.gl import *`",suffix="HINT: make sure you have OpenGL install. On Ubuntu, you can run 'apt-get install python-opengl'. If you're running on a server, you may need a virtual frame buffer; something like this should work: 'xvfb-run -s \"-screen 0 1400x900x24\" python <your_script.py>'")
 
 
