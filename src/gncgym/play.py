@@ -1,7 +1,7 @@
 import inspect
 import numpy as np
 from time import time
-from gncgym.base_env.base import BaseShipScenario
+from gncgym.base_env.base import BaseScenario
 import gncgym.scenarios as scenarios
 
 
@@ -15,13 +15,11 @@ def play_scenario(game):
 
     from pyglet.window import key
 
-    da = np.array([0.0, 0.0])
-
     def key_press(k, mod):
-        if k == key.LEFT:  da[0] = 1
-        if k == key.RIGHT: da[0] = -1
-        if k == key.UP:    da[1] = 1
-        if k == key.DOWN:  da[1] = -1
+        if k == key.LEFT:  a[1] = 1
+        if k == key.RIGHT: a[1] = -1
+        if k == key.UP:    a[0] = 1
+        if k == key.DOWN:  a[0] = -1
 
     def key_release(k, mod):
         nonlocal restart, quit
@@ -31,11 +29,12 @@ def play_scenario(game):
         if k == key.Q:
             quit = True
             print('quit')
-        if k == key.LEFT and da[0] != 0: da[0] = 0
-        if k == key.RIGHT and da[0] != 0: da[0] = 0
-        if k == key.UP:    da[1] = 0
-        if k == key.DOWN:  da[1] = 0
+        if k == key.LEFT and a[1] != 0: a[1] = 0
+        if k == key.RIGHT and a[1] != 0: a[1] = 0
+        if k == key.UP:    a[0] = 0
+        if k == key.DOWN:  a[0] = 0
 
+    env.reset()
     env.render()
     record_video = False
     if record_video:
@@ -46,8 +45,6 @@ def play_scenario(game):
     try:
         while True:
             a = np.array([0.0, 0.0])
-            env.reset()
-            a[0] = env.ship.angle/np.pi
             total_reward = 0.0
             steps = 0
             t = time()
@@ -55,21 +52,22 @@ def play_scenario(game):
             quit = False
             while True:
                 t, dt = time(), time()-t
-                a[0] = ((a[0] + dt*da[0] + 1) % 2) - 1
-                a[1] = np.clip(a[1] + dt*da[1], 0, 1)
-
-                obs, r, done, info = env.step(da)
+                a[0] = np.clip(a[0], 0, 1)
+                a[1] = np.clip(a[1], -1, 1)
+                obs, r, done, info = env.step(a)
                 total_reward += r
-                if steps % 200 == 0 or done:
+
+                if False and steps % 200 == 0 or done:
                     print("\nObservation: {}".format(obs))
-                    print("action " + str(["{:+0.2f}".format(x) for x in a]))
+                    print("action " + str(["{:0.2f}".format(x) for x in a]))
                     print("step {} total_reward {:+0.2f}".format(steps, total_reward))
                 steps += 1
-                if not record_video:  # Faster, but you can as well call base_env.render() every time to play full window.
-                    env.render()
+                env.render()
 
                 if quit: raise KeyboardInterrupt
                 if done or restart: break
+
+            env.reset()
 
     except KeyboardInterrupt:
         pass

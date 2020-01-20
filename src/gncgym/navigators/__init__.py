@@ -1,13 +1,9 @@
-from .model import Model
-from gncgym.utils import auto_load_classes
-
-import os
 import sys
-import importlib
+from gncgym.utils import auto_load_classes
 
 this = sys.modules[__name__]
 
-this.available_models = None
+this.available_navigators = None
 
 
 def autoload():
@@ -16,6 +12,8 @@ def autoload():
     discovered scenarios are saved in scenarios.available_scenarios
     :return dict: Contains the discovered scenario classes in the scenarios folder, indexed by class name
     """
-    if this.available_models is None:
-        this.available_models = auto_load_classes(['gncgym', 'models'], class_type=Model)
-    return this.available_models
+    from gncgym.navigators.navigator import Navigator
+
+    if this.available_navigators is None:
+        this.available_navigators = auto_load_classes(['gncgym', 'navigators'], Navigator)
+    return this.available_navigators

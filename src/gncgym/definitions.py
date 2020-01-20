@@ -14,8 +14,8 @@ which is more resusable and clear when compared to numeric indexing.
 """
 
 
-# NumPy has something called Record Arrays, which can be used exactly the same as these named tuples, but based on
-# the power of numpy arrays. This is the next step...
+# TODO Numpy has something called Record Arrays, which can be used exactly the same as these named tuples, but based on
+#  the power of numpy arrays. This is the next step...
 
 this = sys.modules[__name__]
 
@@ -118,3 +118,29 @@ def distance(v1, v2):
 def normalise(v):
     L = norm(v)
     return type(v)(*[p/L for p in v])
+
+
+# TODO Consider moving to base.py
+# TODO Consider calling ENVSnapshot EnvState instead
+class EnvSnapshot:
+    def __init__(self, timestamp: float, vessel: State6DOF, objects: dict, disturbances: dict, modules: dict):
+        self.timestamp = timestamp
+        self.vessel = vessel
+        self.objects = objects
+        self.disturbances = disturbances
+
+    def repr(self):
+        return "EnvSnapshot(timestamp={})".format(self.timestamp)
+
+
+class ModuleSnapshot:
+    def __init__(self, timestamp, model, objective, observer=None, controller=None):
+        self.timestamp = timestamp
+        self.signals = dict(
+            model={'in': model.input, 'out': model.output},
+            objective={'in': objective.input, 'out': objective.output},
+            observer=None if observer is None else {'in': observer.input, 'out':observer.output},
+            controller=None if controller is None else {'in': controller.input, 'out': controller.output})
+
+    def repr(self):
+        return "ModuleSnapshot(timestamp={})".format(self.timestamp)

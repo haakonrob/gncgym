@@ -1,31 +1,37 @@
 import gym
-from gym import spaces
 import numpy as np
-from numpy import pi, sin, cos, arctan2
-from gncgym import simulator as sim
-from gncgym.definitions import State6DOF
-
-from . import rendering
-from .objects import MAX_SURGE
-from gncgym.utils import distance, rotate
-from gym.utils import seeding, EzPickle
-from gncgym.simulator.angle import Angle
 import pyglet
 from pyglet import gl
+from gym import spaces
+from numpy import pi, sin, cos, arctan2
+from collections import namedtuple
 
+from gncgym import simulator as sim
+from gncgym.definitions import State6DOF, EnvSnapshot, ModuleSnapshot
+from . import rendering
+from .objects import Vessel2D # , MAX_SURGE
+from gncgym.utils import distance, rotate, angwrap
+from gym.utils import seeding, EzPickle
+
+from types import SimpleNamespace
 from numpy.random import random
+
+from .indicators import Dashboard, VerticalIndicator, TextLabel, ObstacleVectorsIndicator
 
 """
     
 """
 
-
+# TODO make window resizable
 STATE_W = 96   # less than Atari 160x192
 STATE_H = 96
 VIDEO_W = 600
 VIDEO_H = 400
 WINDOW_W = 1200
 WINDOW_H = 1000
+
+s = WINDOW_W / 80.0  # Basic unit of window width
+h = WINDOW_H / 40.0  # Basic unit of window height
 
 SCALE       = 5.0        # Track scale
 PLAYFIELD   = 3000/SCALE # Game over boundary
@@ -38,6 +44,7 @@ OBST_RANGE = 150
 OBST_PENALTY = 25
 DETECTED_OBST_COLOR = (0.1, 0.7, 0.2)
 
+# TODO Try alternative observation methods
 NR = 0  # Number of elements in reference obs
 NS = 4  # Number of elements in state obs
 STATIC_OBST_SLOTS = 4
@@ -56,273 +63,167 @@ else:
     OBS_SPACE = np.concatenate([STATE_SPACE, STATIC_OBST_SPACE, DYNAMIC_OBST_SPACE], axis=1)
 
 
-class BaseShipScenario(gym.Env, EzPickle):
+class BaseScenario(gym.Env, EzPickle):
+    """BaseShipScenario"""
+
+    """Default values"""
+    sim_t = 0                       # Time
+    bg = None                       # Background
+    objective = SimpleNamespace()   # Namespace for variables related to the objective
+    viewer = None                   # Renderer, draw shapes
+    last_obs = None                 # Last observation made
+    np_random = None                # Random number generator used for generation, ensures reproducibility with seed()
+    objects = []                    # Contains objects in the environment
+    vessel = None                   # Object for visualising the model state
+    indicators = []                 # List of Indicators that display custom information
+    base_initialised = False        # Flag to check that the user initialises the env using env.reset()
+
     metadata = {
         'render.modes': ['human', 'rgb_array', 'state_pixels'],
         'video.frames_per_second': FPS
     }
 
-    def __init__(self):
-        self.t = sim.init(
+    """
+    ### User defined functions ###
+    
+    The only required function is generate_scenario, which allows
+    the user to customise variables freely, such as adding obstacles to env.objects, or initialising
+    the objective in a certain way. 
+    """
+
+    def generate_scenario(self, rng):
+        raise NotImplemented("Generate() must be implemented. It must at least set the self.ship variable.")
+
+    """
+    ### Mix-in functions ###
+    These functions must be implemented by subclasses. Some are mandatory, like the Model and objective functions,
+    but others have suitable defaults.
+    """
+    def _reset_model(self, initial_state):
+        raise NotImplementedError
+
+    def _model(self, action):
+        raise NotImplementedError
+
+    def reset_objective(self, namespace, rng):
+        raise NotImplementedError
+
+    def eval_objective(self, namespace, action, state_est, state):
+        raise NotImplementedError
+
+    def render_objective(self, namespace, viewer):
+        raise NotImplementedError
+
+    def navigate(self, state):
+        pass
+
+    def disturbance(self, rng):
+        pass
+
+
+    """
+    ### OpenAI Gym API ###
+        reset()
+        step()
+        render()
+        seed()
+        close()
+    """
+
+    def reset(self):
+        """
+        initial_state = self.generate(self.np_random)
+        self.model_init(initial_state)
+        :return:
+        """
+        sim.init(
             solver='fixed_step',
             step_size=0.05,
         )
 
-        self.viewer = None
-        self.bg = None
-
-        self.path = None
-        self.s = None
-
-        self.speed = None
-        self.ship = None
-        self.last_obs = None
-
-        self.static_obstacles = None
-        self.dynamic_obstacles = None
-        self.active_static = None
-        self.active_dynamic = None
-        self.viewer = None
-
-        self.reward = None
-        self.np_random = None
-
-        self.reset()
-
-        # TODO change the action space to match the boat actions
-        # TODO create a reasonable observation space, current is image related
-        self.action_space = gym.spaces.Box(low=np.array([-1, 0]), high=np.array([+1, +1]), dtype=np.float32)
-        self.observation_space = gym.spaces.Box(low=OBS_SPACE[0, :], high=OBS_SPACE[1, :], dtype=np.float32)
-
-    def step(self, action):
-        self.ship.steer(action[0])
-        self.ship.surge(action[1])
-
-        # TODO Reshape this into a simple control loop with various modules
-        """
-        w = self.disturbances()
-        x = self.ship.step(u, w)
-        y = self.observer(xn)
-        e = self.objective(xn, yn)  # e = (obs, step_r, done, info)
-        self.objects = []
-        env = 
-        snapshot = EnvSnapshot(timestamp=t, env=}
-        return e
-        
-        """
-        state = self.ship.step()
-        s = self.path.get_closest_s(state.position[0:2])
-        ds, self.s = s - self.s, s
-
-        for o in self.dynamic_obstacles:
-            o.step()
-
-        obs = self.navigate(self.ship.state)
-        self.last_obs = obs
-        done, sr = self.step_reward(action, obs, ds)
-        info = {}
-        self.reward += sr
-
-        self.t = sim.env.step()  # Updates dt
-
-        return obs, sr, done, info
-
-    # TODO move to observer or objective module
-    def navigate(self, state):
-
-        self.update_closest_obstacles()
-
-        # TODO Try lookahead vector instead of closest point
-        closest_point = self.path(self.s).flatten()
-        closest_angle = self.path.get_angle(self.s)
-        target = self.path(self.s + LOS_DISTANCE).flatten()
-        target_angle = self.path.get_angle(self.s + LOS_DISTANCE)
-
-        # Ref error
-        surge_ref_error = self.speed - self.ship.ref[0]
-        heading_ref_error = float(Angle(target_angle - self.ship.ref[1]*pi))
-
-        # State and path errors
-        velocity = state.velocity
-        surge_error = self.speed - velocity.surge
-        heading_error = float(Angle(target_angle - state.orientation.yaw))
-        cross_track_error = rotate(closest_point - np.array(self.ship.position[0:2]), -closest_angle)[1]
-        target_dist = distance(state.position[0:2], target)
-
-        # Construct observation vector
-        obs = np.zeros((NR + NS + 2 * STATIC_OBST_SLOTS + 4 * DYNAMIC_OBST_SLOTS,))
-
-        if NR == 2:
-            # obs[0] = np.clip(surge_ref_error / MAX_SURGE, -1, 1)
-            obs[1] = np.clip(heading_ref_error / pi, -1, 1)
-
-        obs[NR+0] = np.clip(surge_error / MAX_SURGE, -1, 1)
-        obs[NR+1] = np.clip(heading_error / pi, -1, 1)
-        obs[NR+2] = np.clip(cross_track_error / OBST_RANGE, -1, 1)
-        obs[NR+3] = np.clip(target_dist / OBST_RANGE, 0, 1)
-
-        # Write static obstacle data into observation
-        for i, slot in self.active_static.items():
-            obst = self.static_obstacles[i]
-            vec = obst.position - self.ship.position
-            obs[NS + NR + 2*slot] = float(Angle(arctan2(vec[1], vec[0]) - self.ship.angle))/pi
-            obs[NS + NR + 2*slot + 1] = 1 - np.clip((np.linalg.norm(vec) - self.ship.radius - obst.radius) / LOS_DISTANCE, 0, 1)
-
-        # Write dynamic obstacle data into observation
-        for i, slot in self.active_dynamic.items():
-            obst = self.dynamic_obstacles[i]
-            vec = obst.position - self.ship.position
-            obs[NS + NR + STATIC_OBST_SLOTS * 2 + 4*slot] = float(Angle(arctan2(vec[1], vec[0]) - self.ship.angle))/pi
-            obs[NS + NR + STATIC_OBST_SLOTS * 2 + 4*slot + 1] = 1 - np.clip(
-                (np.linalg.norm(vec) - self.ship.radius - obst.radius) / LOS_DISTANCE, 0, 1)
-            vel = rotate(obst.linearVelocity, self.ship.angle)
-            obs[NS + NR + STATIC_OBST_SLOTS * 2 + 4*slot + 2] = vel[0]
-            obs[NS + NR + STATIC_OBST_SLOTS * 2 + 4*slot + 3] = vel[1]
-
-        return obs
-
-    def update_closest_obstacles(self):
-        # Deallocate static obstacles that are out of range
-        for i, slot in self.active_static.copy().items():
-            if distance(self.ship.position, self.static_obstacles[i].position) > OBST_RANGE * 1.05:
-                self.active_static.pop(i)
-
-        # Deallocate dynamic obstacles that are out of range
-        for i, slot in self.active_dynamic.copy().items():
-            if distance(self.ship.position, self.dynamic_obstacles[i].position) > OBST_RANGE * 1.05:
-                self.active_dynamic.pop(i)
-
-        if STATIC_OBST_SLOTS > 0:
-            # Allocate static obstacles
-            distances = {i: distance(self.ship.position, obst.position) for i, obst in enumerate(self.static_obstacles)}
-            for obsti, obst in enumerate(self.static_obstacles):
-                dist = distances[obsti]
-                if dist < OBST_RANGE and obsti not in self.active_static:
-                    available_slots = tuple(set(range(STATIC_OBST_SLOTS)) - set(self.active_static.values()))
-                    if len(available_slots) > 0:
-                        slot = np.random.choice(available_slots)
-                        self.active_static[obsti] = slot
-                    else:
-                        active_distances = {k: distances[k] for k in self.active_static.keys()}
-                        i_max = max(active_distances, key=active_distances.get)
-                        if dist < active_distances[i_max]:
-                            slot_max = self.active_static[i_max]
-                            self.active_static.pop(i_max)
-                            self.active_static[obsti] = slot_max
-
-        if DYNAMIC_OBST_SLOTS > 0:
-            # Allocate dynamic obstacles
-            distances = {i: distance(self.ship.position, obst.position) for i, obst in enumerate(self.dynamic_obstacles)}
-            for obsti, obst in enumerate(self.dynamic_obstacles):
-                dist = distances[obsti]
-                if dist < OBST_RANGE and obsti not in self.active_dynamic:
-                    available_slots = tuple(set(range(DYNAMIC_OBST_SLOTS)) - set(self.active_dynamic.values()))
-                    if len(available_slots) > 0:
-                        slot = np.random.choice(available_slots)
-                        self.active_dynamic[obsti] = slot
-                    else:
-                        active_distances = {k: distances[k] for k in self.active_dynamic.keys()}
-                        i_max = max(active_distances, key=active_distances.get)
-                        if dist < active_distances[i_max]:
-                            slot_max = self.active_dynamic[i_max]
-                            self.active_dynamic.pop(i_max)
-                            self.active_dynamic[obsti] = slot_max
-
-    def step_reward(self, action, obs, ds):
-        done = False
-        x, y = self.ship.position
-        step_reward = 0
-
-        # Living penalty
-        # step_reward -= 0.001  # TODO Increase living penalty
-
-        if not done and self.reward < -50:
-            done = True
-
-        if not done and abs(self.s - self.path.length) < 1:
-            done = True
-
-        for o in self.static_obstacles + self.dynamic_obstacles:
-            if not done and distance(self.ship.position, o.position) < self.ship.radius + o.radius:
-                done = True
-                step_reward -= OBST_PENALTY
-                break
-
-        if not done and abs(x) > PLAYFIELD or abs(y) > PLAYFIELD:
-            done = True
-            step_reward -= 50
-
-        if not done and distance(self.ship.position, self.path.get_endpoint()) < 20:
-            done = True
-            # step_reward += 50
-
-        if not done:  # Reward progress along path, penalise backwards progress
-            step_reward += ds/4
-
-        if not done:  # Penalise cross track error if too far away from path
-            # state_error = obs[:6]
-            # step_reward += (0.2 - np.clip(np.linalg.norm(state_error), 0, 0.4))/100
-            # heading_err = state_error[2]
-            # surge_err = state_error[3]
-            # TODO Punish for facing wrong way / Reward for advancing along path
-
-            surge_error = obs[NR+0]
-            cross_track_error = obs[NR+2]
-
-            # step_reward -= abs(cross_track_error)*0.1
-            # step_reward -= max(0, -surge_error)*0.1
-
-            step_reward -= abs(cross_track_error)*0.5 + max(0, -surge_error)*0.5
-
-            # step_reward -= (max(0.1, -obs[0]) - 0.1)*0.3
-            # dist_from_path = np.sqrt(x_err ** 2 + y_err ** 2)
-            # path_angle = self.path.get_angle(self.s)
-            # If the reference is pointing towards the path, don't penalise
-            # if dist_from_path > 0.25 and sign(float(Angle(path_angle - self.ship.ref[1]))) == sign(y_err):
-            #     step_reward -= 0.1*(dist_from_path - 0.25)
-
-        return done, step_reward
-
-    def reset(self):
-        if self.ship is not None:
-            self.ship.destroy()
-            self.ship = None
         if self.np_random is None:
             self.seed()
-        self.static_obstacles = []
-        self.dynamic_obstacles = []
-        self.active_static = dict()
-        self.active_dynamic = dict()
-        self.reward = 0
-        self.s = 0
 
-        self.path_rendered = False
+        # Generate scenario using the seeded RNG
+        # self.generate(self.np_random)
 
-        self.generate(self.np_random)
+        # Initialise the objective
+        action = np.zeros(self._model_input_space.shape)
+        initial_state = self.reset_objective(self.objective, self.np_random)
 
-        if self.speed is None:
-            raise NotImplementedError('The self.speed attribute MUST be set.')
-        if self.path is None:
-            raise NotImplementedError('The self.path attribute MUST be set.')
-        if self.ship is None:
-            raise NotImplementedError('The self.ship attribute MUST be set.')
+        # Initialise the model and get initial observation
+        self._reset_model(initial_state)
+        state = self._model(action)
+        state_est = self.navigate(state)
+        self.last_obs, _, _ = self.eval_objective(self.objective, action, state_est, state)
 
-        self.ship.step()
-        self.last_obs = self.navigate(self.ship.state)  # Initialise with all zeros
+        # Create Vessel object for drawing
+        self.vessel = Vessel2D(state)
 
-        S = np.linspace(0, self.path.length, 1000)
-        self.path_points = np.transpose(self.path(S))
+        # Create indicators
+        # TODO Fix scaling issues, need max surge 
+        self.obs_indicator = ObstacleVectorsIndicator(position=(20 * s, h), dim=(s, h), veclen=1)
+        self.indicators = [
+            Dashboard(width=WINDOW_W, height=h),
+            TextLabel((20, WINDOW_H * 2.5 / 40.00), fontsize=36,
+                      color=(255, 255, 255, 255), val_fn=lambda: self.objective.reward),
+            VerticalIndicator(position=(s * 14, 1.6 * h),
+                              dim=(1.5 * s, 1.5 * h),
+                              val_range=(0, 1),
+                              goal_val=4,
+                              color_range=((0, 0.6, 0.1), (1, 0.6, 0.1)),
+                              val_fn=lambda: self.vessel.state.surge)]
 
+        # One time setups
+        if self.viewer is None:
+            self._init_viewer()
+
+        if self.bg is None:
+            self._init_background()
+
+        self.base_initialised = True
         return self.last_obs
+
+    def step(self, action):
+        # TODO Reshape step() into a simple control loop with various modules
+        """
+        v = self.disturbance()
+        x = self.model(u, v)
+        y = self.observe(xn)
+        obs = self.objective(xn, yn)  # e = (obs, step_r, done, info)
+        self.objects = []
+        for o in self.objects:
+            o.step()
+        snapshot = EnvSnapshot(timestamp=t, vessel=x, objects=self.objects.copy(), disturbances=v}
+        history.add(snapshot)
+        return obs
+
+        """
+
+        # Step the simulation
+        sim.env.step()  # Updates dt
+        state = self._model(action)
+
+        # Get a state estimate using the Navigator
+        state_est = self.navigate(state)
+
+        # Evaluate the current state and the action taken according to the Objective
+        self.last_obs, sr, done = self.eval_objective(self.objective, action, state_est, state)
+
+        # Update drawing objects
+        self.vessel.update(state, action)
+        for o in self.objects:
+            o.update()
+
+        # TODO After updating, put all of the objects into a snapshot that the render function will take in
+
+        return self.last_obs, sr, done, {}
 
     def close(self):
         self.destroy()
         if self.viewer is not None:
             self.viewer.close()
             self.viewer = None
-
-    def generate(self, rng):
-        raise NotImplemented("Generate() must be implemented. It must at least set the self.ship variable.")
 
     def destroy(self):
         pass
@@ -332,37 +233,17 @@ class BaseShipScenario(gym.Env, EzPickle):
         return [seed]
 
     def render(self, mode='human'):
-        if self.viewer is None:
-            self._init_viewer()
-
-        def render_objects():
-            t.enable()
-            self._render_path()
-            self._render_progress()
-            self.ship.draw(self.viewer)
-            self._render_tiles(win)
-            self._render_obstacles()
-
-            # Visualise path error (DEBUGGING)
-            # p = np.array(self.ship.position)
-            # dir = rotate(self.last_obs[0:2], self.ship.angle)
-            # self.viewer.draw_line(p, p + 10*np.array(dir), color=(0.8, 0.3, 0.3))
-
-            for geom in self.viewer.onetime_geoms:
-                geom.render()
-
-            t.disable()
-
-            self._render_indicators(WINDOW_W, WINDOW_H)
+        if not self.base_initialised:
+            raise AttributeError('The environment has not been initialised. '
+                                 'Call env.reset() before running the environment')
 
         zoom = 0.1 * SCALE * max(1 - sim.env.time, 0) + ZOOM * SCALE * min(sim.env.time, 1)   # Animate zoom first second
-        # zoom = 1
-        zoom_state  = ZOOM*SCALE*STATE_W/WINDOW_W
-        zoom_video  = ZOOM*SCALE*VIDEO_W/WINDOW_W
-        scroll_x = self.ship.state.position.x
-        scroll_y = self.ship.state.position.y
-        angle = -self.ship.angle
-        vel = self.ship.linearVelocity
+
+        scroll_x = self.vessel.state.position.x
+        scroll_y = self.vessel.state.position.y
+        angle = -self.vessel.angle
+        vel = self.vessel.linearVelocity
+
         if np.linalg.norm(vel) > 0.5:
             angle = arctan2(vel[0], vel[1])
         self.transform.set_scale(zoom, zoom)
@@ -389,30 +270,49 @@ class BaseShipScenario(gym.Env, EzPickle):
                 VP_W = STATE_W
                 VP_H = STATE_H
             gl.glViewport(0, 0, VP_W, VP_H)
-            t.enable()
 
-            render_objects()
+            self._render_objects()
 
             image_data = pyglet.image.get_buffer_manager().get_color_buffer().get_image_data()
             arr = np.fromstring(image_data.data, dtype=np.uint8, sep='')
             arr = arr.reshape(VP_H, VP_W, 4)
             arr = arr[::-1, :, 0:3]
 
-        if mode=="rgb_array" and not self.human_render: # agent can call or not call base_env.render() itself when recording video.
+        if mode=="rgb_array" and not self.human_render: # agent can call or not call env.render() itself when recording video.
             win.flip()
 
         if mode=='human':
             self.human_render = True
             win.clear()
-            t = self.transform
             gl.glViewport(0, 0, WINDOW_W, WINDOW_H)
 
-            render_objects()
+            self._render_objects()
 
             win.flip()
 
         self.viewer.onetime_geoms = []
         return arr
+
+    def _render_objects(self):
+        # Draw objects with coordinate transform
+        self.transform.enable()
+
+        self.bg.draw()
+        self.render_objective(self.objective, self.viewer)
+        self.vessel.draw(self.viewer)
+
+        for o in self.objects:
+            o.draw()
+
+        for geom in self.viewer.onetime_geoms:
+            geom.render()
+
+        self.transform.disable()
+
+        # Draw indicators without coordinate transform
+        self.obs_indicator.draw()
+        for i in self.indicators:
+            i.draw()
 
     def _init_viewer(self):
         self.viewer = rendering.Viewer(WINDOW_W, WINDOW_H)
@@ -421,76 +321,49 @@ class BaseShipScenario(gym.Env, EzPickle):
                                              color=(255, 255, 255, 255))
         self.transform = rendering.Transform()
 
-    def _render_path(self):
-        self.viewer.draw_polyline(self.path_points, linewidth=3, color=(0.3, 0.3, 0.3))
 
-    def _render_progress(self):
-        # self.viewer.draw_circle(self.path(self.ideal_s), radius=1, res=30, color=(0.3, 0.8, 0.3))
-        p = self.path(self.s).flatten()
-        self.viewer.draw_circle(origin=p, radius=1, res=30, color=(0.8, 0.3, 0.3))
+    # def _render_progress(self):
+    #     # self.viewer.draw_circle(self.path(self.ideal_s), radius=1, res=30, color=(0.3, 0.8, 0.3))
+    #     p = self.path(self.s).flatten()
+    #     self.viewer.draw_circle(origin=p, radius=1, res=30, color=(0.8, 0.3, 0.3))
 
-    def _render_obstacles(self):
-        for i, o in enumerate(self.static_obstacles):
-            o.draw(self.viewer, color=DETECTED_OBST_COLOR if i in self.active_static else None)
+    # # TODO remove, objects should just be drawn as is. To get the color I can use a callback
+    # def _render_obstacles(self):
+    #     for i, o in enumerate(self.static_obstacles):
+    #         o.draw(self.viewer, color=DETECTED_OBST_COLOR if i in self.active_static else None)
+    #
+    #     for i, o in enumerate(self.dynamic_obstacles):
+    #         o.draw(self.viewer, color=DETECTED_OBST_COLOR if i in self.active_dynamic else None)
 
-        for i, o in enumerate(self.dynamic_obstacles):
-            o.draw(self.viewer, color=DETECTED_OBST_COLOR if i in self.active_dynamic else None)
+    def _init_background(self):
+        """ Generate background texture so that we can see that the vessel is moving"""
+        from pyglet.gl.gl import GLubyte
+        # TODO make background texture tiling
+        data = np.zeros((int(2*PLAYFIELD), int(2*PLAYFIELD), 3))
+        self.bg_h = data.shape[0]
+        self.bg_w = data.shape[1]
+        k = self.bg_h//100
+        for x in range(0, data.shape[0], k):
+            for y in range(0, data.shape[1], k):
+                data[x:x+k, y:y+k, :] = np.array((
+                    int(255*min(1.0, 0.3 + 0.025 * (random() - 0.5))),
+                    int(255*min(1.0, 0.7 + 0.025 * (random() - 0.5))),
+                    int(255*min(1.0, 0.8 + 0.025 * (random() - 0.5)))
+                ))
 
-    def _render_tiles(self, win):
-        if self.bg is None:
-            # Initialise background
-            from pyglet.gl.gl import GLubyte
-            data = np.zeros((int(2*PLAYFIELD), int(2*PLAYFIELD), 3))
-            self.bg_h = data.shape[0]
-            self.bg_w = data.shape[1]
-            k = self.bg_h//100
-            for x in range(0, data.shape[0], k):
-                for y in range(0, data.shape[1], k):
-                    data[x:x+k, y:y+k, :] = np.array((
-                        int(255*min(1.0, 0.3 + 0.025 * (random() - 0.5))),
-                        int(255*min(1.0, 0.7 + 0.025 * (random() - 0.5))),
-                        int(255*min(1.0, 0.8 + 0.025 * (random() - 0.5)))
-                    ))
+        pixels = data.flatten().astype('int').tolist()
+        raw_data = (GLubyte * len(pixels))(*pixels)
+        bg = pyglet.image.ImageData(width=self.bg_w, height=self.bg_h, format='RGB', data=raw_data)
+        bg.save('/tmp/bg.png')
+        self.bg = pyglet.sprite.Sprite(bg, x=-self.bg_w/2, y=-self.bg_h/2)
+        self.bg.scale = 1
 
-            pixels = data.flatten().astype('int').tolist()
-            raw_data = (GLubyte * len(pixels))(*pixels)
-            bg = pyglet.image.ImageData(width=self.bg_w, height=self.bg_h, format='RGB', data=raw_data)
-            bg.save('/tmp/bg.png')
-            self.bg = pyglet.sprite.Sprite(bg, x=-self.bg_w/2, y=-self.bg_h/2)
-            self.bg.scale = 1
-
-        self.bg.draw()
-
+    # TODO Move obstacle indicators to objective.py
     def _render_indicators(self, W, H):
 
         s = W/40.0
         h = H/40.0
         boatw = 1.3*25
-        gl.glBegin(gl.GL_QUADS)
-        gl.glColor4f(0,0,0,1)
-        gl.glVertex3f(W, 0, 0)
-        gl.glVertex3f(W, 5*h, 0)
-        gl.glVertex3f(0, 5*h, 0)
-        gl.glVertex3f(0, 0, 0)
-        gl.glEnd()
-
-        def vertical_ind(place, val, color):
-            gl.glBegin(gl.GL_QUADS)
-            gl.glColor3f(*color)
-            gl.glVertex3f((place+0)*s, 2*h + h*val, 0)
-            gl.glVertex3f((place+1)*s, 2*h + h*val, 0)
-            gl.glVertex3f((place+1)*s, 2*h, 0)
-            gl.glVertex3f((place+0)*s, 2*h, 0)
-            gl.glEnd()
-
-        def horiz_ind(place, val, color):
-            gl.glBegin(gl.GL_QUADS)
-            gl.glColor4f(color[0], color[1], color[2], 1)
-            gl.glVertex3f((place+0)*s, 4*h, 0)
-            gl.glVertex3f((place+val)*s, 4*h, 0)
-            gl.glVertex3f((place+val)*s, 2*h, 0)
-            gl.glVertex3f((place+0)*s, 2*h, 0)
-            gl.glEnd()
 
         def gl_boat(x, y):
             # Draw boat shape
@@ -548,29 +421,20 @@ class BaseShipScenario(gym.Env, EzPickle):
                          length=np.clip(closeness, 0.1, 1),
                          color=(np.clip(1.2*closeness, 0, 1), 0.5, 0.1))
 
-        scale = 3
-        R = self.ship.ref[0]
-        true_speed = np.sqrt(np.square(self.ship.linearVelocity[0]) + np.square(self.ship.linearVelocity[1]))
-        if NR == 2:
-            ref_speed_error = self.last_obs[0]
-            vertical_ind(6, -scale*ref_speed_error, color=(np.clip(R/MAX_SURGE, 0, 1), 0.5, 0.1))
-        state_speed_error = self.last_obs[NR+0]
-        vertical_ind(7, -scale*state_speed_error, color=(np.clip(true_speed/MAX_SURGE, 0, 1), 0.6, 0.1))
-
         # Visualise the obstacles as seen by the ship
         obst_ind(place=20)
 
-        self.score_label.text = "{:2.2f}".format(self.reward)
-        self.score_label.draw()
 
+class EnvHistory:
+    Snapshots = namedtuple('Snapshots', ['env', 'modules'])
 
-class EnvSnapshot:
-    def __init__(self, timestamp: float, objects: dict, disturbances: dict, modules: dict):
-        self.timestamp = timestamp
-        self.objects = objects
-        self.disturbances = disturbances
-        self.modules = modules
+    def __init__(self):
+        self.timestamps = []
+        self.snapshots = []
+        self.modules = []
+        self.metadata = {}
 
-    def repr(self):
-        return "EnvSnapshot(timestamp={})".format(self.timestamp)
-
+    def add(self, env_snapshot, module_snapshot):
+        assert env_snapshot.timestamp == module_snapshot.timestamp
+        self.timestamps.append(env_snapshot.timestamp)
+        self.snapshots.append(type(self).Snapshots(env=env_snapshot, modules=module_snapshot))

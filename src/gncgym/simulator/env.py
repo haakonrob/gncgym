@@ -5,7 +5,6 @@ import logging
 env = sys.modules[__name__]
 
 # Public
-env.initialised = False
 env.data_log = dict()
 
 
@@ -24,8 +23,6 @@ def init(**kwargs):
     :param kwargs: kwargs that
     :return: None
     """
-    if env.initialised:
-        raise Exception("Simulation environment initialised more than once.")
 
     if kwargs['solver'] == 'fixed_step':
         env.dt = kwargs['step_size']

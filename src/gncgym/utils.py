@@ -4,6 +4,8 @@ import importlib
 import numpy as np
 
 
+# TODO Replace all of these vector functions with equivalents that work on numpy record arrays,
+#  maybe merge with definition.py
 def distance(p1, p2):
     return np.sqrt((float(p1[0]) - float(p2[0]))**2 + (float(p1[1]) - float(p2[1]))**2)
 
@@ -12,7 +14,7 @@ def rotate(vec, angle):
     if isinstance(vec, np.ndarray):
         vec = vec.flatten()
     angle = float(angle)
-    return (vec[0]*np.cos(angle) - vec[1]*np.sin(angle), vec[1]*np.cos(angle) + vec[0]*np.sin(angle))
+    return vec[0]*np.cos(angle) - vec[1]*np.sin(angle), vec[1]*np.cos(angle) + vec[0]*np.sin(angle)
 
 
 def flatten(li):
@@ -35,6 +37,10 @@ def dfs(li):
         else:
             for j in dfs(i):
                 yield j
+
+
+def angwrap(val):
+    return ((val + np.pi) % (2 * np.pi)) - np.pi
 
 
 def auto_load_classes(module_path, class_type):

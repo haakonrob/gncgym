@@ -1,7 +1,8 @@
 import numpy as np
 from numpy import pi, sin, cos
-from gncgym.simulator.angle import Angle
-from gncgym.utils import distance
+
+from gncgym.definitions import State6DOF
+from gncgym.utils import distance,angwrap
 from gncgym.models.supply_ship_3DOF import make_supply_ship_block
 import gncgym.simulator as sim
 
@@ -14,18 +15,6 @@ import gncgym.simulator as sim
 # functionality, replaced the Box2D simulation and replaced it with my own ship simulation code,
 #
 # Created by Haakon Robinson.
-
-MAX_SURGE = 20
-CROSS_TRACK_TOL = 10
-SURGE_TOL = 0.5
-
-RUDDER_RATE = 0.1
-SURGE_RATE = 0.2
-
-THRUST_MIN = 0
-THRUST_MAX = 10000000
-RUDDER_MIN = pi
-RUDDER_MAX = -pi
 
 
 class EnvObject:
@@ -40,7 +29,7 @@ class EnvObject:
         self.linearVelocity = linearVelocity
         self.angularVelocity = angularVelocity
 
-    def step(self):
+    def update(self, *args):
         raise NotImplemented
 
     def draw(self, viewer):
@@ -55,13 +44,14 @@ class StaticObstacle(EnvObject):
         self.color = color
         super().__init__(radius=radius, position=position)
 
-    def step(self):
+    def update(self):
         pass
 
     def draw(self, viewer, color=None):
         viewer.draw_circle(self.position, self.radius, color=self.color if color is None else color)
 
 
+# TODO Replace path, speed, and init_s with Trajectory object
 class DynamicObstacle(EnvObject):
     def __init__(self, path, speed, init_s=0, color=(0.6, 0, 0), width=5):
         # Create body
@@ -80,7 +70,7 @@ class DynamicObstacle(EnvObject):
         ]
         super().__init__(radius=width, angle=angle, position=(x, y), linearVelocity=(speed*cos(angle), speed*sin(angle)))
 
-    def step(self):
+    def update(self):
         self.s += self.speed * sim.env.dt
         self.position = self.path(self.s).flatten()
         self.angle = self.path.get_angle(self.s)
@@ -89,16 +79,12 @@ class DynamicObstacle(EnvObject):
         viewer.draw_shape(self.vertices, self.position, self.angle, self.color if color is None else color)
 
 
-# Step and draw vessel
 class Vessel2D(EnvObject):
-    def __init__(self, init_angle, init_x, init_y, width=4, linearising_feedback=False):
-        from gncgym.models.supply_ship_3DOF.model import SupplyShip3DOF
-        self.lin_feedback = linearising_feedback
+    def __init__(self, state: State6DOF, width=4):
         self.ref = [0, 0]  # surge, heading
 
-        self.state = np.vstack((init_x, init_y, init_angle, 0, 0, 0))
-        self.model = SupplyShip3DOF(self.state)
-        # self.model = make_supply_ship_block(self.state, linearising_feedback=linearising_feedback)
+        self.state = state
+
         self.path_taken = []
         self.color = (0.6, 0.6, 0.6)
         self.vertices = [
@@ -109,24 +95,11 @@ class Vessel2D(EnvObject):
             (2 * width, -width),
         ]
 
-        super().__init__(radius=width, angle=init_angle, position=(init_x, init_y))
+        super().__init__(radius=width, angle=state.orientation.yaw, position=(state.position.x, state.position.y))
 
-    def surge(self, surge):
-        lo = self.model.input_space.low[0]
-        hi = self.model.input_space.high[0]
-        self.ref[0] = np.clip(surge, lo, hi)
-
-    def steer(self, steer):
-        lo = self.model.input_space.low[1]
-        hi = self.model.input_space.high[1]
-        self.ref[1] = np.clip(steer, lo, hi)
-
-    def step(self):
-        self.state = self.model.step(self.ref)
-        if self.path_taken == [] or distance(self.state.position[0:2], self.path_taken[-1]) > 3:
-            self.path_taken.append((self.state.position.x, self.state.position.y))
-
-        return self.state
+    def update(self, state, ref):
+        self.state = state
+        self.ref = ref
 
     def draw(self, viewer):
         position = self.state.position[0:2]
@@ -134,7 +107,4 @@ class Vessel2D(EnvObject):
         # print(orientation)
         viewer.draw_polyline(self.path_taken, linewidth=3, color=(0.8, 0, 0))  # previous positions
         viewer.draw_shape(self.vertices, position, orientation.yaw, self.color)  # ship
-        if self.lin_feedback:
-            viewer.draw_arrow(position, self.ref[1], length=5)  # reference
-        else:
-            viewer.draw_arrow(position, orientation.yaw + pi + self.ref[1]/2, length=2)
+        viewer.draw_arrow(position, orientation.yaw + pi + self.ref[1]/2, length=2)

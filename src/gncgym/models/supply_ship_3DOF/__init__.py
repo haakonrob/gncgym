@@ -1,1 +1,1 @@
-from .supplyShip import make_supply_ship_block
+from .supplyShipBlock import make_supply_ship_block

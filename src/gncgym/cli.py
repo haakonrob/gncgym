@@ -1,8 +1,9 @@
 import click
 import inspect
 import gncgym.scenarios.example_scenarios as scenarios
-from gncgym.base_env.base import BaseShipScenario
+from gncgym.base_env.base import BaseScenario
 from gncgym.play import play_scenario
+
 
 @click.group()
 def cli():
@@ -23,26 +24,7 @@ def cli():
               default='ExampleScenario',
               help='The scenario that you want to run.')
 
-@click.option('--controller',
-              default='human',
-              help='Name of module that defines a control module for the model. This module '
-                   'uses the measured state to generate inputs to the model')
-
-@click.option('--objective',
-              default='path-following',
-              help='A control objective for the model.')
-
-@click.option('--disturbances',
-              default='none',
-              help='Name of module that defines disturbances to add to the simulation.'
-                   'Support for disturbances is model dependent.')
-
-@click.option('--observer',
-              default='none',
-              help='Measurement nodule. If you want to simulate noisy measurements or'
-                   'experiment with different oberservers, this is the place to do it.')
-
-def play(model, scenario, controller, objective, disturbances, observer):
+def play(model, scenario):
     """
 
     :param model:

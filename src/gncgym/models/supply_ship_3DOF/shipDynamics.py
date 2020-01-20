@@ -1,5 +1,5 @@
 import numpy as np
-from gncgym.simulator.angle import Angle
+from gncgym.utils import angwrap
 from numpy.linalg import inv
 from .gncUtilities import m2c, Rzyx
 
@@ -32,7 +32,7 @@ def make_supply_ship_dynamics_block():
         C_p = np.delete(C_p, [3, 4, 5], axis=0)
         C_p = np.delete(C_p, [3, 4, 5], axis=1)
 
-        eta_dot = Rzyx(0, 0, Angle(psi)).dot(nu)
+        eta_dot = Rzyx(0, 0, angwrap(psi)).dot(nu)
         nu_dot = M_p_inv.dot(B_p.dot(f) - C_p.dot(nu) - D_p.dot(nu))
         return np.concatenate([eta_dot, nu_dot])
 

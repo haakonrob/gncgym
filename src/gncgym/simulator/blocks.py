@@ -7,7 +7,8 @@ from .env import declare_block
 
 @declare_block
 def make_integrator_block(initial_value):
-    buffer = deepcopy(initial_value)
+    # np.array actually creates a new object, similarly to copy
+    buffer = np.array(initial_value)
 
     def integrate(val):
         nonlocal buffer

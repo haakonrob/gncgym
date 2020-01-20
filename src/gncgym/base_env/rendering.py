@@ -6,7 +6,7 @@ Changes:
     - Added an 'origin' argument to the draw_circle() and make_circle() functions to allow drawing of circles anywhere.
     - Added an 'outline' argument to the draw_circle() function, allows a more stylised render
 
-Created by Haakon Robinson, based on OpenAI's gym.base_env.classical.rendering.py
+Created by Haakon Robinson, adapted from OpenAI's gym.base_env.classical.rendering.py
 """
 from __future__ import division
 import os
@@ -38,8 +38,6 @@ import numpy as np
 
 
 RAD2DEG = 57.29577951308232
-
-
 
 
 def get_display(spec):

@@ -6,7 +6,7 @@ from numpy import pi
 # import matplotlib.pyplot as plt
 from scipy import interpolate
 from scipy.optimize import fminbound
-from gncgym.simulator.angle import Angle
+from gncgym.utils import angwrap
 
 
 class ParamLine():
@@ -24,7 +24,7 @@ class ParamLine():
         self.A = np.array([[a_x], [a_y]])
         self.p0 = np.array([[x1], [y1]])
         self.length = L
-        self.angle = Angle(np.arctan2(dy, dx))
+        self.angle = angwrap(np.arctan2(dy, dx))
 
     def __call__(self, s):
         s = np.array(s)
@@ -91,7 +91,7 @@ class ParamCurve():
         output = []
         for ss in s:
             dx, dy = (self.C(ss + 0.05) - self.C(ss - 0.05)).flatten()
-            output.append(Angle(np.arctan2(dy, dx)))
+            output.append(angwrap(np.arctan2(dy, dx)))
         return np.array(output)
 
     def get_endpoint(self):
@@ -135,7 +135,7 @@ class ParamCircle:
         s = np.array(s)
         if s.shape == ():
             s = np.array([s])
-        return np.array([Angle(pi/2 + ss/self.R) for ss in s])
+        return np.array([angwrap(pi/2 + ss/self.R) for ss in s])
 
     def get_endpoint(self):
         return self(self.length-100)

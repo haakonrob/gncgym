@@ -17,15 +17,26 @@ class Model:
     """
 
     def __init__(self, x0=None):
-        """
-        This function initialises an instance of a Model to be in the state x0, as well as specifying the
-        input_space, output_map, and (optionally) the disturbance_space.
-        :param x0: initial state of the system.
-        :return Model:
-        """
-        raise NotImplementedError('The __init__() method must be defined by any subclass of Model.')
+        # Initialise the integrator and the model dynamics
+        self._model_state = None
+        self._model_integrate = None
+        self.ship_dynamics = None
 
-    def step(self, u, v=None):
+    def reset_model(self, initial_state):
+        raise NotImplementedError
+
+    def step_model(self, u, v=None):
+        raise NotImplementedError('The _step() method must be defined by any subclass of Model.')
+
+    def _reset_model(self, initial_state):
+        if type(initial_state) is dict:
+            self.reset_model([initial_state[k] for k in self.state_map])
+        elif type(initial_state) is gncdefs.State6DOF:
+            self.reset_model(np.array([v for v in initial_state if v is not None]))
+        else:
+            raise ValueError('Invalid state type passed to _reset_model')
+
+    def _model(self, u, v=None):
         """
         Steps the model forward one time step. The time step used is defined by the model, or the simulator
         module that is used.
@@ -36,21 +47,18 @@ class Model:
         """
         u = np.array(u)
         v = np.array(v) if v is not None else v
-        if not self.input_space.contains(u):
+        if not self._model_input_space.contains(u):
             logging.warning("Input {} is out of input_space.")
 
         if self.supports_disturbances():
-            raw_state = self._step(u, v)
+            raw_state = self.step_model(u, v)
         else:
-            raw_state = self._step(u)
+            raw_state = self.step_model(u)
 
-        return gncdefs.State6DOF(**{self.output_map[i]: float(value)for i, value in enumerate(raw_state)})
-
-    def _step(self, u, v=None):
-        raise NotImplementedError('The _step() method must be defined by any subclass of Model.')
+        return gncdefs.State6DOF(**{self.state_map[i]: float(value) for i, value in enumerate(raw_state)})
 
     @property
-    def input_space(self):
+    def _model_input_space(self):
         """
         MANDATORY property of a Model. Must be set by the subclass definition before the class
         can be used with the rest of the code. This should be done in the __init__() method of
@@ -62,27 +70,15 @@ class Model:
         implemented model to decide whether to throw an error or saturate the value.
         :return: gym.Space
         """
-        if '_input_space' not in self.__dict__:
-            raise NotImplementedError("The input_space attribute has not been set by the subclass of Model.")
-        else:
-            return self._input_space
-
-    @input_space.setter
-    def input_space(self, u_space: gym.Space):
-        """
-        Verifies the type of Model.input_space when trying to set the attribute. This method is called when
-        input_space is assigned to, for example:
-            >>> m = Model()                 # Subclass of Model
-            >>> m.input_space = my_space    # The input_space.setter is called here
-        """
-        if issubclass(type(u_space), gym.Space):
-            self._input_space = u_space
-        else:
-            raise TypeError("The input_space attribute must be of type gym.Space")
-
+        try:
+            if not issubclass(type(self.model_input_space), gym.Space):
+                raise TypeError("The input_space attribute must be of type gym.Space")
+            return self.model_input_space
+        except AttributeError:
+            raise NotImplementedError("The _model_input_space attribute has not been set by the subclass of Model.")
 
     @property
-    def output_map(self):
+    def state_map(self):
         """
         MANDATORY property of a Model. Must be set by the subclass definition before the class
         can be used with the rest of the code. This should be done in the __init__() method of
@@ -94,14 +90,14 @@ class Model:
         else:
             return self._output_map
 
-    @output_map.setter
-    def output_map(self, o_map: tuple):
+    @state_map.setter
+    def state_map(self, o_map: tuple):
         """
         Verifies the type of Model.output_map when trying to set the attribute. This method is
         called when output_map is assigned to, for example:
             >>> m = Model()                 # Subclass of Model
-            >>> m.output_map = my_tuple     # output_map.setter is called here
-        The output map is just a tuple or list that assigns a text label to each index in
+            >>> m.state_map = my_tuple     # output_map.setter is called here
+        The output map is just a tuple or list that assigns a text label to each element in the state
         """
         if type(o_map) is list:
             o_map = tuple(o_map)
@@ -120,7 +116,7 @@ class Model:
         wind, currents.
         :return:
         """
-        return '_disturbance_space' not in self.__dict__
+        return '_disturbance_space' in self.__dict__
 
     @property
     def disturbance_space(self):

@@ -1,6 +1,7 @@
 from gym.envs.registration import register
 from gym.error import Error as GymError
 import gncgym.scenarios as scenarios
+from .base_env.base import BaseScenario
 
 
 """
