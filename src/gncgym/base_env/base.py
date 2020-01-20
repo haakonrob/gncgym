@@ -1,3 +1,4 @@
+import os
 import gym
 import numpy as np
 import pyglet
@@ -321,6 +322,47 @@ class BaseScenario(gym.Env, EzPickle):
                                              color=(255, 255, 255, 255))
         self.transform = rendering.Transform()
 
+    def _render_path(self):
+        self.viewer.draw_polyline(self.path_points, linewidth=3, color=(0.3, 0.3, 0.3))
+
+    def _render_progress(self):
+        # self.viewer.draw_circle(self.path(self.ideal_s), radius=1, res=30, color=(0.3, 0.8, 0.3))
+        p = self.path(self.s).flatten()
+        self.viewer.draw_circle(origin=p, radius=1, res=30, color=(0.8, 0.3, 0.3))
+
+    def _render_obstacles(self):
+        for i, o in enumerate(self.static_obstacles):
+            o.draw(self.viewer, color=DETECTED_OBST_COLOR if i in self.active_static else None)
+
+        for i, o in enumerate(self.dynamic_obstacles):
+            o.draw(self.viewer, color=DETECTED_OBST_COLOR if i in self.active_dynamic else None)
+
+    def _render_tiles(self, win):
+        if self.bg is None:
+            # Initialise background
+            from pyglet.gl.gl import GLubyte
+            data = np.zeros((int(2*PLAYFIELD), int(2*PLAYFIELD), 3))
+            self.bg_h = data.shape[0]
+            self.bg_w = data.shape[1]
+            k = self.bg_h//100
+            for x in range(0, data.shape[0], k):
+                for y in range(0, data.shape[1], k):
+                    data[x:x+k, y:y+k, :] = np.array((
+                        int(255*min(1.0, 0.3 + 0.025 * (random() - 0.5))),
+                        int(255*min(1.0, 0.7 + 0.025 * (random() - 0.5))),
+                        int(255*min(1.0, 0.8 + 0.025 * (random() - 0.5)))
+                    ))
+
+            pixels = data.flatten().astype('int').tolist()
+            raw_data = (GLubyte * len(pixels))(*pixels)
+            bg = pyglet.image.ImageData(width=self.bg_w, height=self.bg_h, format='RGB', data=raw_data)
+            if not os.path.exists('.tmp/'):
+                os.mkdir('./tmp')
+            bg.save('./tmp/bg.png')
+            self.bg = pyglet.sprite.Sprite(bg, x=-self.bg_w/2, y=-self.bg_h/2)
+            self.bg.scale = 1
+
+        self.bg.draw()
 
     # def _render_progress(self):
     #     # self.viewer.draw_circle(self.path(self.ideal_s), radius=1, res=30, color=(0.3, 0.8, 0.3))
